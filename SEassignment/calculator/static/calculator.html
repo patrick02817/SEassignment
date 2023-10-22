@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculator</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<style>
+    * {
+        font-family: sans-serif;
+        font-weight: normal;
+        font-size: 1.1em;
+    }
+    td {
+        background-color: #ccc;
+        padding: 10px 30px 10px 30px;
+        border-radius: 0.2em;
+        text-align: center;
+        cursor: default;
+    }
+    #result {
+        border-color: #000;
+        border-width: 1px;
+        border-style: solid;
+        padding: 10px 30px 10px 30px;
+        text-align: right;
+    }
+</style>
+<body onload="loadRecentHistory()">
+    <div id="calculator">
+        <table>
+            <tr>
+                <th colspan="3">
+                    <div id="result">0</div>
+                </th>
+                <td onclick="clearExpression()">C</td>
+            </tr>
+            <tr>
+                <td onclick="appendToExpression('7')">7</td>
+                <td onclick="appendToExpression('8')">8</td>
+                <td onclick="appendToExpression('9')">9</td>
+                <td onclick="appendToExpression('/')">/</td>
+            </tr>
+            <tr>
+                <td onclick="appendToExpression('4')">4</td>
+                <td onclick="appendToExpression('5')">5</td>
+                <td onclick="appendToExpression('6')">6</td>
+                <td onclick="appendToExpression('*')">*</td>
+            </tr>
+            <tr>
+                <td onclick="appendToExpression('1')">1</td>
+                <td onclick="appendToExpression('2')">2</td>
+                <td onclick="appendToExpression('3')">3</td>
+                <td onclick="appendToExpression('-')">-</td>
+            </tr>
+            <tr>
+                <td onclick="appendToExpression('0')">0</td>
+                <td onclick="appendToExpression('.')">.</td>
+                <td onclick="calculateExpression()">=</td>
+                <td onclick="appendToExpression('+')">+</td>
+            </tr>
+            <tr>
+                <td onclick="appendToExpression('%')">%</td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <textarea id="history" rows="10" style="width: 100%;"></textarea>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <button onclick="displayLastResult()">ans</button>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <script>
+        function appendToExpression(value) {
+            let result = $('#result').text();
+            if (result === '0' || result === 'error') {
+                $('#result').text(value);
+            } else {
+                $('#result').text(result + value);
+            }
+        }
+
+        function clearExpression() {
+            $('#result').text('0');
+        }
+
+        function calculateExpression() {
+            let expression = $('#result').text();
+            if (expression) {
+                // 替换log，ln，sin，cos为对应的数学函数
+                expression = expression.replace(/ln/g, 'math.log');
+                expression = expression.replace(/sin/g, 'math.sin');
+                expression = expression.replace(/cos/g, 'math.cos');
+
+                $.ajax({
+                    url: '/calculate',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ 'expression': expression }),
+                    success: function (data) {
+                        if (data.status === 'success') {
+                            $('#result').text(data.result);
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    },
+                    error: function () {
+                        alert('Error: Failed to calculate.');
+                    }
+                });
+            }
+        }
+
+        function displayLastResult() {
+            $.ajax({
+                method: "GET",
+                url: "/history",
+                success: function (response) {
+                    if (response.length > 0) {
+                        let lastEntry = response[response.length - 1];
+                        let result = lastEntry.split(": ")[1];
+                        $('#result').text(result);
+                    } else {
+                        alert('Error: No history found.');
+                    }
+                },
+                error: function () {
+                    alert('Error: Failed to get history.');
+                }
+            });
+        }
+
+        function loadRecentHistory() {
+            $.ajax({
+                method: "GET",
+                url: "/history",
+                success: function (response) {
+                    var historyText = "";
+                    for (var i = response.length-1; i >= 0; i--) {
+                        historyText += response[i] + "\n";
+                    }
+                    $('#history').val(historyText);
+                },
+                error: function () {
+                    alert('Error: Failed to get history.');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
